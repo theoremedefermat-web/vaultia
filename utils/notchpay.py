@@ -6,7 +6,7 @@ Docs : https://developer.notchpay.co
 
 import os
 import httpx
-from typing import dict
+from typing import Dict
 
 NOTCHPAY_PUBLIC_KEY = os.getenv("NOTCHPAY_PUBLIC_KEY", "")
 NOTCHPAY_HASH_KEY = os.getenv("NOTCHPAY_HASH_KEY", "")
@@ -14,7 +14,7 @@ WEBHOOK_URL = os.getenv("WEBHOOK_BASE_URL", "")
 
 
 async def create_payment(escrow_id: str, amount: int,
-                          method: str, description: str) -> dict:
+                          method: str, description: str) -> Dict:
     """
     Crée une demande de paiement NotchPay.
     Retourne { success, payment_url, reference }

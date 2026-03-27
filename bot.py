@@ -1,7 +1,7 @@
 """
 VAULTIA ESCROW BOT
 Bot Telegram d'escrow pour services physiques au Cameroun
-Stack : python-telegram-bot 20.x + Supabase + NotchPay
+Stack : python-telegram-bot 22.x + Supabase + NotchPay
 """
 
 import logging

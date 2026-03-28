@@ -77,6 +77,8 @@ def main():
     # === HANDLERS ===
     app.add_handler(CommandHandler("start", start_handler))
     app.add_handler(CommandHandler("menu", start_handler))
+    # go_start ramène à l'écran de choix de mode
+    app.add_handler(CallbackQueryHandler(start_handler, pattern="^go_start$"))
     app.add_handler(CallbackQueryHandler(role_callback, pattern="^role_"))
     app.add_handler(CallbackQueryHandler(my_requests, pattern="^my_requests$"))
     app.add_handler(CallbackQueryHandler(my_services, pattern="^my_services$"))

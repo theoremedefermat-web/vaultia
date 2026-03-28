@@ -10,7 +10,7 @@ CREATE TABLE users (
   telegram_id       BIGINT UNIQUE NOT NULL,
   username          TEXT DEFAULT '',
   full_name         TEXT NOT NULL,
-  role              TEXT CHECK (role IN ('client', 'seller')) DEFAULT 'client',
+  role              TEXT DEFAULT '',  -- Plus utilisé comme rôle fixe, gardé pour compatibilité
   balance           INTEGER DEFAULT 0,  -- Solde en XAF (gains non retirés)
   total_sent        INTEGER DEFAULT 0,  -- Total envoyé comme client
   total_received    INTEGER DEFAULT 0,  -- Total reçu comme vendeuse

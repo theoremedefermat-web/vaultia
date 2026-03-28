@@ -43,7 +43,8 @@ def get_or_create_user(telegram_id: int, username: str, full_name: str, role: st
     user = get_user(telegram_id)
     if user:
         return user
-    return create_user(telegram_id, username, full_name, role or "client")
+    # Le rôle n'est plus stocké — c'est une décision de session
+    return create_user(telegram_id, username, full_name, role or "")
 
 def update_balance(telegram_id: int, delta: int):
     user = get_user(telegram_id)

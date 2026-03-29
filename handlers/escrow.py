@@ -235,38 +235,102 @@ async def _after_payment_confirmed(query_or_msg, context, escrow: dict, seller_r
 
 
 async def _notify_seller(context, escrow: dict, seller_username: str):
-    """Cherche la vendeuse par username et lui envoie une notification"""
-    # En production, chercher l'ID Telegram via la base de données
-    # Pour l'instant, on utilise le système de deep link
+    """
+    Cherche la vendeuse par username et lui envoie une notification.
+    Si elle n'est pas en base, notifie l'admin pour intervention manuelle.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+
     short_id = escrow["id"][:8].upper()
-    amount = escrow["amount"]
     seller_gets = escrow["seller_amount"]
+    amount = escrow["amount"]
 
     keyboard = [[
         InlineKeyboardButton("✅ Accepter", callback_data=f"accept_{escrow['id']}"),
         InlineKeyboardButton("❌ Refuser", callback_data=f"decline_{escrow['id']}"),
     ]]
 
-    # Si on a l'ID de la vendeuse en base
+    notification_text = (
+        f"🔔 *Nouvelle demande Vaultia !*\n\n"
+        f"🔐 Réf : `{short_id}`\n"
+        f"📝 Service : _{escrow['description']}_\n"
+        f"💰 Vous recevrez : *{seller_gets:,} XAF*\n\n"
+        f"✅ L'argent est déjà sécurisé chez Vaultia.\n"
+        f"Acceptez pour rendre le service et être payée."
+    )
+
     from db.database import get_db
+    seller_found = False
+
     try:
-        res = get_db().table("users").select("telegram_id").eq("username", seller_username).single().execute()
+        # Chercher par username (insensible à la casse)
+        clean_username = seller_username.lstrip("@").lower().strip()
+        db = get_db()
+
+        # Essai 1 : username exact
+        res = db.table("users").select("telegram_id, username, full_name") \
+                .ilike("username", clean_username).execute()
+
         if res.data:
-            seller_id = res.data["telegram_id"]
+            seller_id = res.data[0]["telegram_id"]
             await context.bot.send_message(
                 chat_id=seller_id,
-                text=f"🔔 *Nouvelle demande !*\n\n"
-                     f"🔐 Réf : `{short_id}`\n"
-                     f"📝 Service : _{escrow['description']}_\n"
-                     f"💰 Vous recevrez : *{seller_gets:,} XAF*\n\n"
-                     f"✅ L'argent est déjà sécurisé chez Vaultia.\n"
-                     f"Si vous acceptez et rendez le service, vous serez payée.",
+                text=notification_text,
                 parse_mode="Markdown",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
-    except:
-        # La vendeuse n'a pas encore le bot — envoyer le lien
-        pass
+            seller_found = True
+            logger.info(f"Vendeuse notifiée : @{clean_username} (ID: {seller_id})")
+
+    except Exception as e:
+        logger.error(f"Erreur notification vendeuse @{seller_username}: {e}")
+
+    # Si vendeuse introuvable → notifier l'admin ET le client
+    if not seller_found:
+        logger.warning(f"Vendeuse @{seller_username} introuvable en base pour escrow {escrow['id']}")
+
+        bot_username = (await context.bot.get_me()).username
+
+        # Message au client pour l'informer
+        try:
+            await context.bot.send_message(
+                chat_id=escrow["client_telegram_id"],
+                text=(
+                    f"⚠️ *Attention*\n\n"
+                    f"La vendeuse @{seller_username} n'a pas encore de compte Vaultia.\n\n"
+                    f"*Demandez-lui de faire ceci :*\n"
+                    f"1️⃣ Ouvrir Telegram\n"
+                    f"2️⃣ Chercher @{bot_username}\n"
+                    f"3️⃣ Taper /start\n"
+                    f"4️⃣ Choisir Mode Vendeuse\n\n"
+                    f"Elle recevra alors votre demande automatiquement.\n\n"
+                    f"🔐 Réf de votre demande : `{short_id}`\n"
+                    f"💵 Votre argent est sécurisé chez Vaultia."
+                ),
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            logger.error(f"Erreur notification client: {e}")
+
+        # Notifier l'admin
+        if ADMIN_ID:
+            try:
+                await context.bot.send_message(
+                    chat_id=ADMIN_ID,
+                    text=(
+                        f"⚠️ *Vendeuse introuvable*\n\n"
+                        f"🔐 Réf : `{short_id}`\n"
+                        f"👩 Username : @{seller_username}\n"
+                        f"💵 Montant : {amount:,} XAF\n"
+                        f"📝 _{escrow['description']}_\n\n"
+                        f"La vendeuse n'a pas encore lancé le bot.\n"
+                        f"Le client a été informé de lui demander de s'inscrire."
+                    ),
+                    parse_mode="Markdown"
+                )
+            except Exception as e:
+                logger.error(f"Erreur notification admin: {e}")
 
 
 # ==================== ACTIONS VENDEUSE ====================
